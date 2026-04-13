@@ -7,7 +7,7 @@ import {
   Square, RotateCcw, Copy, Check, Trash2, Edit3, MoreVertical, X, Wifi,
   Play, GitBranch, GitCommit, FolderOpen, FileText, Map, Command, Clock,
   BookOpen, Columns, Layout, MousePointer, Plus, Save, ExternalLink,
-  Network, Diff, Share2
+  Network, Diff, Share2, Paperclip, FolderSearch
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1104,22 +1104,88 @@ const VoiceRecorder = ({ onTranscript, isEnabled }: { onTranscript: (t: string) 
 };
 
 // ─── Input Bar ────────────────────────────────────────────────────────────────
+interface AttachedFile { name: string; content: string; path: string; size: number }
+
+const readFileAsText = (file: File): Promise<string> => new Promise((resolve) => {
+  const r = new FileReader();
+  r.onload = e => resolve(e.target?.result as string || '');
+  r.onerror = () => resolve('[binary file — cannot read]');
+  r.readAsText(file);
+});
+
 const InputBar = ({ onSendMessage, isChatActive, onVoiceTranscript, voiceEnabled, isGenerating }: {
   onSendMessage: (msg: string) => void; isChatActive: boolean;
   onVoiceTranscript: (t: string) => void; voiceEnabled: boolean; isGenerating: boolean;
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [isToolPopupOpen, setIsToolPopupOpen] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
+  const [isReadingFiles, setIsReadingFiles] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const handleSend = () => { if (inputValue.trim() && !isGenerating) { onSendMessage(inputValue); setInputValue(''); } };
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+
+  const formatFileSize = (bytes: number) => bytes < 1024 ? `${bytes}B` : bytes < 1048576 ? `${(bytes/1024).toFixed(1)}KB` : `${(bytes/1048576).toFixed(1)}MB`;
+
+  const handleFiles = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    setIsReadingFiles(true);
+    const TEXT_EXTS = ['.txt','.md','.js','.ts','.tsx','.jsx','.py','.html','.css','.json','.yaml','.yml','.sh','.bash','.toml','.rs','.go','.java','.cpp','.c','.h','.sql','.xml','.csv','.env','.ini','.cfg'];
+    const newFiles: AttachedFile[] = [];
+    for (const file of Array.from(fileList)) {
+      const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+      const isText = TEXT_EXTS.includes(ext) || !file.name.includes('.');
+      const content = isText ? await readFileAsText(file) : '[binary file]';
+      const path = (file as any).webkitRelativePath || file.name;
+      newFiles.push({ name: file.name, content, path, size: file.size });
+    }
+    setAttachedFiles(prev => {
+      const existing = new Set(prev.map(f => f.path));
+      return [...prev, ...newFiles.filter(f => !existing.has(f.path))];
+    });
+    setIsReadingFiles(false);
+  };
+
+  const removeFile = (path: string) => setAttachedFiles(prev => prev.filter(f => f.path !== path));
+
+  const handleSend = () => {
+    const hasText = inputValue.trim();
+    const hasFiles = attachedFiles.length > 0;
+    if ((!hasText && !hasFiles) || isGenerating) return;
+    let fullMessage = inputValue.trim();
+    if (hasFiles) {
+      const filesBlock = attachedFiles.map(f =>
+        `\n\n--- Archivo: ${f.path} (${formatFileSize(f.size)}) ---\n\`\`\`\n${f.content.slice(0, 8000)}${f.content.length > 8000 ? '\n...[truncado]' : ''}\n\`\`\``
+      ).join('');
+      fullMessage = (fullMessage ? fullMessage + '\n' : 'Analiza los siguientes archivos:\n') + filesBlock;
+    }
+    onSendMessage(fullMessage);
+    setInputValue('');
+    setAttachedFiles([]);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } };
+
   return (
     <div className={`w-full max-w-2xl mx-auto transition-all ${isChatActive ? 'mt-4' : 'mt-8'}`}>
       <div className="relative">
         <ToolPopup isOpen={isToolPopupOpen} onClose={() => setIsToolPopupOpen(false)} />
         <div className="input-glow bg-gray-900 border border-red-500/30 rounded-xl transition-all">
+          {attachedFiles.length > 0 && (
+            <div className="px-3 pt-3 flex flex-wrap gap-2">
+              {attachedFiles.map(f => (
+                <div key={f.path} className="flex items-center gap-1.5 bg-red-900/30 border border-red-500/30 rounded-lg px-2 py-1 text-xs text-red-300 max-w-[200px]" title={f.path}>
+                  <FileText size={11} className="flex-shrink-0 text-red-400" />
+                  <span className="truncate">{f.path.includes('/') ? f.path : f.name}</span>
+                  <span className="text-red-500/60 flex-shrink-0">{formatFileSize(f.size)}</span>
+                  <button onClick={() => removeFile(f.path)} className="flex-shrink-0 text-red-500/60 hover:text-red-400 ml-0.5"><X size={10} /></button>
+                </div>
+              ))}
+              {isReadingFiles && <div className="flex items-center gap-1 text-xs text-red-400/60 animate-pulse"><RefreshCw size={10} className="animate-spin" /> Leyendo...</div>}
+            </div>
+          )}
           <textarea ref={inputRef} value={inputValue} onChange={e => setInputValue(e.target.value)} onKeyDown={handleKeyDown}
-            placeholder={isGenerating ? 'AI is generating...' : 'Ask me anything... (Shift+Enter for new line)'}
+            placeholder={isGenerating ? 'IA generando...' : attachedFiles.length > 0 ? 'Indica qué hacer con los archivos... (opcional)' : 'Pregunta lo que quieras... (Shift+Enter = nueva línea)'}
             disabled={isGenerating} rows={1}
             className="w-full bg-transparent text-white placeholder-red-400/40 px-4 py-3.5 outline-none text-sm disabled:opacity-50 resize-none min-h-[52px] max-h-[200px]"
             style={{ height: 'auto' }}
@@ -1129,10 +1195,21 @@ const InputBar = ({ onSendMessage, isChatActive, onVoiceTranscript, voiceEnabled
               <button className="p-2 rounded-lg hover:bg-red-500/20 text-red-400/60 hover:text-red-400 transition-all btn-press"><Search size={18} /></button>
               <button onClick={() => setIsToolPopupOpen(!isToolPopupOpen)} className={`p-2 rounded-lg transition-all btn-press ${isToolPopupOpen ? 'bg-red-500/30 text-red-400' : 'hover:bg-red-500/20 text-red-400/60 hover:text-red-400'}`}><Wrench size={18} /></button>
               <button className="p-2 rounded-lg hover:bg-red-500/20 text-red-400/60 hover:text-red-400 transition-all btn-press"><AtSign size={18} /></button>
+              <label title="Adjuntar archivos (múltiples)" className={`p-2 rounded-lg transition-all btn-press cursor-pointer ${attachedFiles.length > 0 ? 'bg-red-500/30 text-red-400' : 'hover:bg-red-500/20 text-red-400/60 hover:text-red-400'}`}>
+                <Paperclip size={18} />
+                <input ref={fileInputRef} type="file" multiple className="hidden" onChange={e => handleFiles(e.target.files)} onClick={e => { (e.target as HTMLInputElement).value = ''; }} />
+              </label>
+              <label title="Adjuntar carpeta completa" className="p-2 rounded-lg hover:bg-red-500/20 text-red-400/60 hover:text-red-400 transition-all btn-press cursor-pointer">
+                <FolderSearch size={18} />
+                <input ref={folderInputRef} type="file" className="hidden"
+                  {...({ webkitdirectory: '', directory: '' } as any)}
+                  onChange={e => handleFiles(e.target.files)}
+                  onClick={e => { (e.target as HTMLInputElement).value = ''; }} />
+              </label>
             </div>
             <div className="flex items-center gap-1">
               <VoiceRecorder onTranscript={onVoiceTranscript} isEnabled={voiceEnabled} />
-              <button onClick={handleSend} disabled={!inputValue.trim() || isGenerating} className="p-2 rounded-lg bg-red-600 hover:bg-red-500 disabled:bg-gray-700 disabled:text-gray-500 text-white transition-all btn-press">
+              <button onClick={handleSend} disabled={(!inputValue.trim() && attachedFiles.length === 0) || isGenerating} className="p-2 rounded-lg bg-red-600 hover:bg-red-500 disabled:bg-gray-700 disabled:text-gray-500 text-white transition-all btn-press">
                 <Send size={16} />
               </button>
             </div>
