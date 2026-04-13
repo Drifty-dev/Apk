@@ -158,32 +158,33 @@ app.get('/download', (req, res) => {
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root { --red: #e94560; --dark: #0a0a0a; --card: #111; --border: rgba(233,69,96,0.25); }
-    body { min-height: 100vh; background: var(--dark); color: #fff; font-family: 'Segoe UI', system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+    html { background: var(--dark); }
+    body { background: var(--dark); color: #fff; font-family: 'Segoe UI', system-ui, sans-serif; padding: 32px 16px 48px; min-height: 100%; }
+    .wrap { max-width: 560px; margin: 0 auto; position: relative; z-index: 1; }
     .particles { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
     .particle { position: absolute; width: 2px; height: 2px; background: var(--red); border-radius: 50%; opacity: 0.3; animation: float linear infinite; }
     @keyframes float { 0% { transform: translateY(100vh) rotate(0deg); opacity: 0; } 10% { opacity: 0.3; } 90% { opacity: 0.3; } 100% { transform: translateY(-100px) rotate(720deg); opacity: 0; } }
-    .card { position: relative; z-index: 1; background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 48px 40px; max-width: 560px; width: 100%; text-align: center; box-shadow: 0 0 80px rgba(233,69,96,0.08); }
-    .logo { width: 80px; height: 80px; border-radius: 20px; background: linear-gradient(135deg, #e94560, #9b1c3c); display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; font-size: 36px; box-shadow: 0 8px 32px rgba(233,69,96,0.35); }
-    h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; }
-    .sub { color: rgba(255,255,255,0.5); font-size: 0.95rem; margin-bottom: 36px; line-height: 1.6; }
-    .steps { text-align: left; background: rgba(233,69,96,0.06); border: 1px solid var(--border); border-radius: 14px; padding: 20px 24px; margin-bottom: 32px; }
-    .steps h3 { color: var(--red); font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 14px; }
-    .step { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; font-size: 0.88rem; color: rgba(255,255,255,0.75); line-height: 1.5; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 40px 32px; width: 100%; text-align: center; box-shadow: 0 0 80px rgba(233,69,96,0.08); }
+    .logo { width: 80px; height: 80px; border-radius: 20px; background: linear-gradient(135deg, #e94560, #9b1c3c); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 36px; box-shadow: 0 8px 32px rgba(233,69,96,0.35); }
+    h1 { font-size: 1.7rem; font-weight: 700; margin-bottom: 8px; }
+    .sub { color: rgba(255,255,255,0.5); font-size: 0.92rem; margin-bottom: 28px; line-height: 1.6; }
+    .steps { text-align: left; background: rgba(233,69,96,0.06); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; margin-bottom: 28px; }
+    .steps h3 { color: var(--red); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 14px; }
+    .step { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; font-size: 0.86rem; color: rgba(255,255,255,0.75); line-height: 1.5; }
     .step:last-child { margin-bottom: 0; }
     .num { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--red); color: #fff; font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
-    .code { background: rgba(0,0,0,0.4); border: 1px solid rgba(233,69,96,0.2); border-radius: 6px; padding: 2px 8px; font-family: monospace; font-size: 0.82rem; color: #f87171; }
-    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 16px 32px; background: linear-gradient(135deg, #e94560, #c0264a); color: #fff; font-size: 1rem; font-weight: 700; text-decoration: none; border: none; border-radius: 14px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 24px rgba(233,69,96,0.35); letter-spacing: 0.03em; }
-    .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(233,69,96,0.5); }
-    .btn:active { transform: translateY(0); }
+    .code { background: rgba(0,0,0,0.4); border: 1px solid rgba(233,69,96,0.2); border-radius: 6px; padding: 2px 8px; font-family: monospace; font-size: 0.8rem; color: #f87171; }
+    .btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 18px 24px; background: linear-gradient(135deg, #e94560, #c0264a); color: #fff; font-size: 1rem; font-weight: 700; text-decoration: none; border: none; border-radius: 14px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 24px rgba(233,69,96,0.35); letter-spacing: 0.02em; -webkit-tap-highlight-color: transparent; }
+    .btn:active { opacity: 0.85; transform: scale(0.98); }
     .btn svg { flex-shrink: 0; }
-    .note { margin-top: 20px; font-size: 0.78rem; color: rgba(255,255,255,0.3); line-height: 1.6; }
-    .badge { display: inline-flex; align-items: center; gap: 5px; background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); color: #4ade80; font-size: 0.72rem; font-weight: 600; padding: 3px 10px; border-radius: 20px; margin-bottom: 12px; }
-    @media (max-width: 480px) { .card { padding: 32px 20px; } h1 { font-size: 1.5rem; } }
+    .note { margin-top: 18px; font-size: 0.76rem; color: rgba(255,255,255,0.3); line-height: 1.6; }
+    .badge { display: inline-flex; align-items: center; gap: 5px; background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); color: #4ade80; font-size: 0.72rem; font-weight: 600; padding: 3px 10px; border-radius: 20px; margin-bottom: 16px; }
+    @media (max-width: 400px) { .card { padding: 28px 16px; } h1 { font-size: 1.4rem; } body { padding: 20px 12px 40px; } }
   </style>
 </head>
 <body>
   <div class="particles" id="particles"></div>
-  <div class="card">
+  <div class="wrap"><div class="card">
     <div class="badge">
       <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="5"/></svg>
       Listo para compilar
@@ -210,7 +211,7 @@ app.get('/download', (req, res) => {
       Descargar proyecto Android (.zip)
     </a>
     <p class="note">El ZIP incluye el proyecto Capacitor/Android + el workflow de GitHub Actions ya configurado.<br>No se necesita instalar nada extra en tu PC.</p>
-  </div>
+  </div></div>
 
   <script>
     const p = document.getElementById('particles');
