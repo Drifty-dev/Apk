@@ -56,10 +56,11 @@ wss.on('connection', (ws) => {
 app.post('/api/chat', async (req, res) => {
   const { messages, model, temperature, stream, ollamaUrl } = req.body;
   const base = ollamaUrl || 'http://localhost:11434';
+  const resolvedModel = (model && model !== 'godmoded/llama3-lexi-uncensored') ? model : 'tinyllama';
   try {
     const resp = await fetch(`${base}/api/chat`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: model || 'godmoded/llama3-lexi-uncensored', messages, temperature: temperature ?? 0.7, stream: stream !== false }),
+      body: JSON.stringify({ model: resolvedModel, messages, temperature: temperature ?? 0.7, stream: stream !== false }),
     });
     if (!resp.ok) { res.status(resp.status).json({ error: await resp.text() }); return; }
     if (stream !== false) {
