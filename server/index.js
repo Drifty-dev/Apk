@@ -127,6 +127,170 @@ app.post('/api/git/commit', async (req, res) => {
 });
 app.post('/api/git/branch', async (req, res) => { try { await gitR(req.body.repoPath).checkoutLocalBranch(req.body.name); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); } });
 
+// ─── Download Page ────────────────────────────────────────────────────────────
+const ROOT = path.join(__dirname, '..');
+
+function addDirToZip(zip, dirPath, zipBasePath) {
+  if (!fs.existsSync(dirPath)) return;
+  const SKIP = ['node_modules', '.gradle', 'build', '.git', 'dist', '.DS_Store'];
+  const entries = fs.readdirSync(dirPath);
+  for (const entry of entries) {
+    if (SKIP.includes(entry)) continue;
+    const fullPath = path.join(dirPath, entry);
+    const zipPath = path.join(zipBasePath, entry);
+    const stat = fs.statSync(fullPath);
+    if (stat.isDirectory()) {
+      addDirToZip(zip, fullPath, zipPath);
+    } else {
+      try { zip.addLocalFile(fullPath, path.dirname(zipPath), path.basename(zipPath)); } catch {}
+    }
+  }
+}
+
+app.get('/download', (req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(`<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WormGPT — Descargar proyecto Android</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --red: #e94560; --dark: #0a0a0a; --card: #111; --border: rgba(233,69,96,0.25); }
+    body { min-height: 100vh; background: var(--dark); color: #fff; font-family: 'Segoe UI', system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+    .particles { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+    .particle { position: absolute; width: 2px; height: 2px; background: var(--red); border-radius: 50%; opacity: 0.3; animation: float linear infinite; }
+    @keyframes float { 0% { transform: translateY(100vh) rotate(0deg); opacity: 0; } 10% { opacity: 0.3; } 90% { opacity: 0.3; } 100% { transform: translateY(-100px) rotate(720deg); opacity: 0; } }
+    .card { position: relative; z-index: 1; background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 48px 40px; max-width: 560px; width: 100%; text-align: center; box-shadow: 0 0 80px rgba(233,69,96,0.08); }
+    .logo { width: 80px; height: 80px; border-radius: 20px; background: linear-gradient(135deg, #e94560, #9b1c3c); display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; font-size: 36px; box-shadow: 0 8px 32px rgba(233,69,96,0.35); }
+    h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; }
+    .sub { color: rgba(255,255,255,0.5); font-size: 0.95rem; margin-bottom: 36px; line-height: 1.6; }
+    .steps { text-align: left; background: rgba(233,69,96,0.06); border: 1px solid var(--border); border-radius: 14px; padding: 20px 24px; margin-bottom: 32px; }
+    .steps h3 { color: var(--red); font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 14px; }
+    .step { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; font-size: 0.88rem; color: rgba(255,255,255,0.75); line-height: 1.5; }
+    .step:last-child { margin-bottom: 0; }
+    .num { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--red); color: #fff; font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+    .code { background: rgba(0,0,0,0.4); border: 1px solid rgba(233,69,96,0.2); border-radius: 6px; padding: 2px 8px; font-family: monospace; font-size: 0.82rem; color: #f87171; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 16px 32px; background: linear-gradient(135deg, #e94560, #c0264a); color: #fff; font-size: 1rem; font-weight: 700; text-decoration: none; border: none; border-radius: 14px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 24px rgba(233,69,96,0.35); letter-spacing: 0.03em; }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(233,69,96,0.5); }
+    .btn:active { transform: translateY(0); }
+    .btn svg { flex-shrink: 0; }
+    .note { margin-top: 20px; font-size: 0.78rem; color: rgba(255,255,255,0.3); line-height: 1.6; }
+    .badge { display: inline-flex; align-items: center; gap: 5px; background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); color: #4ade80; font-size: 0.72rem; font-weight: 600; padding: 3px 10px; border-radius: 20px; margin-bottom: 12px; }
+    @media (max-width: 480px) { .card { padding: 32px 20px; } h1 { font-size: 1.5rem; } }
+  </style>
+</head>
+<body>
+  <div class="particles" id="particles"></div>
+  <div class="card">
+    <div class="badge">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="5"/></svg>
+      Listo para compilar
+    </div>
+    <div class="logo">🐛</div>
+    <h1>WormGPT Android</h1>
+    <p class="sub">Descarga el proyecto Android preconfigurado con GitHub Actions. Solo súbelo a GitHub y el APK se compilará automáticamente.</p>
+
+    <div class="steps">
+      <h3>Pasos para obtener el APK</h3>
+      <div class="step"><div class="num">1</div><div>Descarga el ZIP y extráelo en tu computadora</div></div>
+      <div class="step"><div class="num">2</div><div>Crea un repositorio en <strong>github.com</strong> y sube todos los archivos</div></div>
+      <div class="step"><div class="num">3</div><div>Ve a la pestaña <span class="code">Actions</span> → el workflow <span class="code">Build Android APK</span> se ejecutará solo</div></div>
+      <div class="step"><div class="num">4</div><div>Cuando termine (~5 min), descarga el APK desde <span class="code">Artifacts</span></div></div>
+      <div class="step"><div class="num">5</div><div>Instala el APK en tu Android activando "fuentes desconocidas"</div></div>
+    </div>
+
+    <a class="btn" href="/api/download/android-project.zip" id="dlBtn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Descargar proyecto Android (.zip)
+    </a>
+    <p class="note">El ZIP incluye el proyecto Capacitor/Android + el workflow de GitHub Actions ya configurado.<br>No se necesita instalar nada extra en tu PC.</p>
+  </div>
+
+  <script>
+    const p = document.getElementById('particles');
+    for (let i = 0; i < 18; i++) {
+      const el = document.createElement('div');
+      el.className = 'particle';
+      el.style.left = Math.random() * 100 + '%';
+      el.style.animationDuration = (8 + Math.random() * 12) + 's';
+      el.style.animationDelay = (Math.random() * 8) + 's';
+      p.appendChild(el);
+    }
+    document.getElementById('dlBtn').addEventListener('click', function() {
+      this.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Preparando ZIP...';
+      setTimeout(() => {
+        this.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar proyecto Android (.zip)';
+      }, 3000);
+    });
+  </script>
+</body>
+</html>`);
+});
+
+app.get('/api/download/android-project.zip', (req, res) => {
+  try {
+    const zip = new AdmZip();
+    const androidDir = path.join(ROOT, 'app', 'android');
+    const workflowFile = path.join(ROOT, '.github', 'workflows', 'build-android.yml');
+    addDirToZip(zip, androidDir, 'android');
+    if (fs.existsSync(workflowFile)) {
+      zip.addLocalFile(workflowFile, '.github/workflows', 'build-android.yml');
+    }
+    const readme = `# WormGPT Android — Instrucciones para compilar el APK
+
+## Requisitos
+Solo necesitas una cuenta gratuita en GitHub.
+
+## Pasos
+
+### 1. Crear repositorio en GitHub
+1. Ve a https://github.com/new
+2. Nombre: \`wormgpt-android\` (o el que quieras)
+3. Visibilidad: **Privado** (recomendado)
+4. Haz clic en "Create repository"
+
+### 2. Subir los archivos
+Sube todos los archivos de este ZIP al repositorio:
+- La carpeta \`android/\` completa
+- La carpeta \`.github/\` con el workflow
+
+### 3. Esperar el build automático
+GitHub Actions compilará el APK automáticamente.
+Ve a la pestaña **Actions** de tu repositorio.
+El proceso dura ~5 minutos.
+
+### 4. Descargar el APK
+Cuando el workflow termine (ícono verde ✓):
+1. Haz clic en el workflow completado
+2. Baja hasta "Artifacts"
+3. Descarga \`WormGPT-debug\`
+4. Extrae el ZIP y tendrás el APK
+
+### 5. Instalar en Android
+1. Copia el APK a tu teléfono
+2. Activa "Instalar apps de fuentes desconocidas" en Ajustes
+3. Abre el APK y toca "Instalar"
+
+## Soporte
+El APK de debug ya está firmado con una clave de debug y se puede instalar directamente.
+Para publicar en Play Store necesitarías generar una clave de firma.
+`;
+    zip.addFile('README.md', Buffer.from(readme, 'utf8'));
+    const buf = zip.toBuffer();
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="wormgpt-android-project.zip"');
+    res.setHeader('Content-Length', buf.length);
+    res.send(buf);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Static / Fallback ────────────────────────────────────────────────────────
 const distPath = path.join(__dirname, '..', 'app', 'dist');
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
